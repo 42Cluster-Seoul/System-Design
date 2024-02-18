@@ -1,4 +1,4 @@
-## nginx access.log 로그 파일 및 메트릭 정보 수집
+## nginx access.log 로그 파일 및 시스템 메트릭 정보 수집
 
 ### 1. jdk
 
