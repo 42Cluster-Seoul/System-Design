@@ -1,0 +1,13 @@
+image: "${image_url}"
+
+resources:
+  requests:
+    cpu: "1m"
+    memory: "128Mi"
+  limits:
+    cpu: "1m"
+    memory: "128Mi"
+
+ingress:
+  enabled: true
+  # host: ""
