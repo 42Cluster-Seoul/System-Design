@@ -6,6 +6,9 @@ HELM_TEMPLATES_DIRECTORY="template/templates"
 
 if [ ! -d "$OUTPUT_DIRECTORY" ]; then
   mkdir -p "$OUTPUT_DIRECTORY"
+else
+  rm -rf "$OUTPUT_DIRECTORY"
+  mkdir -p "$OUTPUT_DIRECTORY"
 fi
 
 cp template/values.yaml.template $OUTPUT_VALUES_FILE
