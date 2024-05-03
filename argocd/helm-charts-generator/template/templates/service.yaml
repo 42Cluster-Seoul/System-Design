@@ -1,15 +1,17 @@
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: { { .Release.Name } }
   labels:
-    app: { { .Release.Name } }
+    app: {{ .Values.app.name }}
+  name: {{ .Values.app.name }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
   ports:
-    - name: "8080"
-      port: 80
-      targetPort: 8080
+  - port: {{ .Values.service.port }}
+    protocol: TCP
+    name: http
+    targetPort: {{ .Values.app.port }}
   selector:
-    app: { { .Release.Name } }
-  type: LoadBalancer
-  # loadBalancerClass: service.k8s.aws/nlb
+    app: {{ .Values.app.name }}
+{{- end }}
