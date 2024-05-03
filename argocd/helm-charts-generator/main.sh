@@ -32,4 +32,8 @@ rm -f "$OUTPUT_CHARTS_FILE.tmp" "$OUTPUT_VALUES_FILE.tmp"
 
 cp -r "$HELM_TEMPLATES_DIRECTORY" "$OUTPUT_DIRECTORY"
 
-echo "New Helm Charts created with app name: $app_name"
+echo -e "\n🪽 New Helm Charts created with app name: $app_name \n"
+
+echo -e "✅ Lint Check for application: $app_name\n"
+
+helm lint $OUTPUT_DIRECTORY
