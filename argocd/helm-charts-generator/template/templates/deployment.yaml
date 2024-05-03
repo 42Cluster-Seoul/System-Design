@@ -22,9 +22,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.rbac.enabled }}
-      serviceAccount: {{ .Values.app.name }}
-      {{- end }}
       containers:
       - image: {{ .Values.app.image }}
         name: {{ .Values.app.name }}
