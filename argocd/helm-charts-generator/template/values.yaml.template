@@ -1,13 +1,27 @@
-image: "${image_url}"
+app:
+  name: "${app_name}"
+  replicas: ${replicas_count}
+  image: "${image_url}"
+  port: ${port_number}
+  resources: 
+    requests:
+      cpu: "1m"
+      memory: "128Mi"
+    limits:
+      cpu: "1m"
+      memory: "128Mi"
 
-resources:
-  requests:
-    cpu: "1m"
-    memory: "128Mi"
-  limits:
-    cpu: "1m"
-    memory: "128Mi"
+podAnnotations: {}
+podLabels:
+  tier: backend
 
 ingress:
   enabled: true
-  # host: ""
+  className: nginx
+  host: ""
+  path: ""
+  pathType: Prefix
+
+service:
+  enabled: true
+  port: 80
