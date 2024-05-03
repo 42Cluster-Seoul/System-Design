@@ -9,7 +9,7 @@ if [ ! -d "$OUTPUT_DIRECTORY" ]; then
 fi
 
 cp template/values.yaml.template $OUTPUT_VALUES_FILE
-cp template/Charts.yaml.template $OUTPUT_CHARTS_FILE
+cp template/Chart.yaml.template $OUTPUT_CHARTS_FILE
 
 read -p "Enter the value for application name: " app_name
 sed -i.tmp "s/\${app_name}/$app_name/g" $OUTPUT_CHARTS_FILE
