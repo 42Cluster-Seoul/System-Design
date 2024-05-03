@@ -1,22 +1,38 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ .Values.app.name }}
   labels:
-    app: {{ .Release.Name }}
+    app: {{ .Values.app.name }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
+  replicas: {{ .Values.app.replicas }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      app: {{ .Values.app.name }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
       labels:
-        app: {{ .Release.Name }}
+        app: {{ .Values.app.name }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
+      {{- if .Values.rbac.enabled }}
+      serviceAccount: {{ .Values.app.name }}
+      {{- end }}
       containers:
-      - name: main
-        image: {{ .Values.image }}
+      - image: {{ .Values.app.image }}
+        name: {{ .Values.app.name }}
+        {{- with .Values.app.resources }}
         resources:
-{{ toYaml .Values.resources | indent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         ports:
-        - containerPort: 80
+          - name: http
+            protocol: TCP
+            containerPort: {{ .Values.app.port }}
