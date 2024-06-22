@@ -1,0 +1,488 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "<<<<< Deploy EC2 >>>>>"
+        Parameters:
+          - KeyName
+          - MyIamUserAccessKeyID
+          - MyIamUserSecretAccessKey
+          - SgIngressSshCidr
+          - MyInstanceType
+          - LatestAmiId
+      - Label:
+          default: "<<<<< EKS Config >>>>>"
+        Parameters:
+          - ClusterBaseName
+          - KubernetesVersion
+          - WorkerNodeInstanceType
+          - WorkerNodeCount
+          - WorkerNodeVolumesize
+
+      - Label:
+          default: "<<<<< Region AZ >>>>>"
+        Parameters:
+          - TargetRegion
+          - AvailabilityZone1
+          - AvailabilityZone2
+          - AvailabilityZone3
+
+      - Label:
+          default: "<<<<< VPC Subnet >>>>>"
+        Parameters:
+          - VpcBlock
+          - PublicSubnet1Block
+          - PublicSubnet2Block
+          - PublicSubnet3Block
+          - PrivateSubnet1Block
+          - PrivateSubnet2Block
+          - PrivateSubnet3Block
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances. Linked to AWS Parameter
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  MyIamUserAccessKeyID:
+    Description: IAM User - AWS Access Key ID (won't be echoed)
+    Type: String
+    NoEcho: true
+  MyIamUserSecretAccessKey:
+    Description: IAM User - AWS Secret Access Key (won't be echoed)
+    Type: String
+    NoEcho: true
+  SgIngressSshCidr:
+    Description: The IP address range that can be used to communicate to the EC2 instances
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  MyInstanceType:
+    Description: Enter t2.micro, t2.small, t2.medium, t3.micro, t3.small, t3.medium. Default is t2.micro.
+    Type: String
+    Default: t3.medium
+    AllowedValues: 
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t3.micro
+      - t3.small
+      - t3.medium
+  LatestAmiId:
+    Description: (DO NOT CHANGE)
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
+  ClusterBaseName:
+    Type: String
+    Default: cluster42
+    AllowedPattern: "[a-zA-Z][-a-zA-Z0-9]*"
+    Description: must be a valid Allowed Pattern '[a-zA-Z][-a-zA-Z0-9]*'
+    ConstraintDescription: ClusterBaseName - must be a valid Allowed Pattern
+  KubernetesVersion:
+    Description: Enter Kubernetes Version, 1.23 ~ 1.28
+    Type: String
+    Default: 1.28
+  WorkerNodeInstanceType:
+    Description: Enter EC2 Instance Type. Default is t3.medium.
+    Type: String
+    Default: t3.medium
+  WorkerNodeCount:
+    Description: Worker Node Counts
+    Type: String
+    Default: 2
+  WorkerNodeVolumesize:
+    Description: Worker Node Volumes size
+    Type: String
+    Default: 30
+
+  TargetRegion:
+    Type: String
+    Default: ap-northeast-2
+  AvailabilityZone1:
+    Type: String
+    Default: ap-northeast-2a
+  AvailabilityZone2:
+    Type: String
+    Default: ap-northeast-2b
+  AvailabilityZone3:
+    Type: String
+    Default: ap-northeast-2c
+
+  VpcBlock:
+    Type: String
+    Default: 192.168.0.0/16
+  PublicSubnet1Block:
+    Type: String
+    Default: 192.168.1.0/24
+  PublicSubnet2Block:
+    Type: String
+    Default: 192.168.2.0/24
+  PublicSubnet3Block:
+    Type: String
+    Default: 192.168.3.0/24
+  PrivateSubnet1Block:
+    Type: String
+    Default: 192.168.11.0/24
+  PrivateSubnet2Block:
+    Type: String
+    Default: 192.168.12.0/24
+  PrivateSubnet3Block:
+    Type: String
+    Default: 192.168.13.0/24
+
+Resources:
+# VPC
+  EksVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-VPC
+
+# PublicSubnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref PublicSubnet1Block
+      VpcId: !Ref EksVPC
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PublicSubnet1
+        - Key: kubernetes.io/role/elb
+          Value: 1
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: !Ref PublicSubnet2Block
+      VpcId: !Ref EksVPC
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PublicSubnet2
+        - Key: kubernetes.io/role/elb
+          Value: 1
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone3
+      CidrBlock: !Ref PublicSubnet3Block
+      VpcId: !Ref EksVPC
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PublicSubnet3
+        - Key: kubernetes.io/role/elb
+          Value: 1
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref EksVPC
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/NATGateway
+  NATIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/NATIP
+  NATPrivateSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+      RouteTableId: !Ref PrivateSubnetRouteTable
+
+
+  PublicSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PublicSubnetRouteTable
+  PublicSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicSubnetRouteTable
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicSubnetRouteTable
+  PublicSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+# PrivateSubnets
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: !Ref PrivateSubnet1Block
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PrivateSubnet1
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: !Ref PrivateSubnet2Block
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PrivateSubnet2
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone3
+      CidrBlock: !Ref PrivateSubnet3Block
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PrivateSubnet3
+        - Key: kubernetes.io/role/internal-elb
+          Value: 1
+
+  PrivateSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-PrivateSubnetRouteTable
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateSubnetRouteTable
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateSubnetRouteTable
+  PrivateSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet3
+      RouteTableId: !Ref PrivateSubnetRouteTable
+
+# EKSCTL-Host
+  EKSEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: eksctl-host Security Group
+      VpcId: !Ref EksVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-HOST-SG
+      SecurityGroupIngress:
+      - IpProtocol: '-1'
+        #FromPort: '22'
+        #ToPort: '22'
+        CidrIp: !Ref SgIngressSshCidr
+
+  EKSEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref MyInstanceType
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: !Sub ${ClusterBaseName}-bastion-EC2
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref PublicSubnet1
+          GroupSet:
+          - !Ref EKSEC2SG
+          AssociatePublicIpAddress: true
+          PrivateIpAddress: 192.168.1.100
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 30
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            hostnamectl --static set-hostname "${ClusterBaseName}-bastion-EC2"
+
+            # Config Root account
+            echo 'root:qwe123' | chpasswd
+            sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
+            sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+            rm -rf /root/.ssh/authorized_keys
+            systemctl restart sshd
+
+            # Config convenience
+            echo 'alias vi=vim' >> /etc/profile
+            echo "sudo su -" >> /home/ec2-user/.bashrc
+            sed -i "s/UTC/Asia\/Seoul/g" /etc/sysconfig/clock
+            ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+
+            # Install Packages
+            yum -y install tree jq git htop
+
+            # Install kubectl & helm
+            cd /root
+            curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.28.5/2024-01-04/bin/linux/amd64/kubectl
+            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+            curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+            # Install eksctl
+            curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp
+            mv /tmp/eksctl /usr/local/bin
+
+            # Install aws cli v2
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip >/dev/null 2>&1
+            ./aws/install
+            complete -C '/usr/local/bin/aws_completer' aws
+            echo 'export AWS_PAGER=""' >>/etc/profile
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            echo "export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION" >> /etc/profile
+
+            # Install YAML Highlighter
+            wget https://github.com/andreazorzetto/yh/releases/download/v0.4.0/yh-linux-amd64.zip
+            unzip yh-linux-amd64.zip
+            mv yh /usr/local/bin/
+
+            # Install krew
+            curl -L https://github.com/kubernetes-sigs/krew/releases/download/v0.4.4/krew-linux_amd64.tar.gz -o /root/krew-linux_amd64.tar.gz
+            tar zxvf krew-linux_amd64.tar.gz
+            ./krew-linux_amd64 install krew
+            export PATH="$PATH:/root/.krew/bin"
+            echo 'export PATH="$PATH:/root/.krew/bin"' >> /etc/profile
+
+            # Install kube-ps1
+            echo 'source <(kubectl completion bash)' >> /root/.bashrc
+            echo 'alias k=kubectl' >> /root/.bashrc
+            echo 'complete -F __start_kubectl k' >> /root/.bashrc
+            
+            git clone https://github.com/jonmosco/kube-ps1.git /root/kube-ps1
+            cat <<"EOT" >> /root/.bashrc
+            source /root/kube-ps1/kube-ps1.sh
+            KUBE_PS1_SYMBOL_ENABLE=false
+            function get_cluster_short() {
+              echo "$1" | cut -d . -f1
+            }
+            KUBE_PS1_CLUSTER_FUNCTION=get_cluster_short
+            KUBE_PS1_SUFFIX=') '
+            PS1='$(kube_ps1)'$PS1
+            EOT
+
+            # Install krew plugin
+            kubectl krew install ctx ns get-all neat # ktop df-pv mtail tree
+
+            # Install Docker
+            amazon-linux-extras install docker -y
+            systemctl start docker && systemctl enable docker
+
+            # Create SSH Keypair
+            ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa
+
+            # IAM User Credentials
+            export AWS_ACCESS_KEY_ID=${MyIamUserAccessKeyID}
+            export AWS_SECRET_ACCESS_KEY=${MyIamUserSecretAccessKey}
+            export AWS_DEFAULT_REGION=${AWS::Region}
+            export ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+            echo "export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> /etc/profile
+            echo "export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> /etc/profile
+            echo "export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION" >> /etc/profile
+            echo "export ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)" >> /etc/profile
+
+            # CLUSTER_NAME
+            export CLUSTER_NAME=${ClusterBaseName}
+            echo "export CLUSTER_NAME=$CLUSTER_NAME" >> /etc/profile
+
+            # K8S Version
+            export KUBERNETES_VERSION=${KubernetesVersion}
+            echo "export KUBERNETES_VERSION=$KUBERNETES_VERSION" >> /etc/profile
+
+            # VPC & Subnet
+            export VPCID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=$CLUSTER_NAME-VPC" | jq -r .Vpcs[].VpcId)
+            echo "export VPCID=$VPCID" >> /etc/profile
+            export PubSubnet1=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PublicSubnet1" --query "Subnets[0].[SubnetId]" --output text)
+            export PubSubnet2=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PublicSubnet2" --query "Subnets[0].[SubnetId]" --output text)
+            export PubSubnet3=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PublicSubnet3" --query "Subnets[0].[SubnetId]" --output text)
+            echo "export PubSubnet1=$PubSubnet1" >> /etc/profile
+            echo "export PubSubnet2=$PubSubnet2" >> /etc/profile
+            echo "export PubSubnet3=$PubSubnet3" >> /etc/profile
+            export PrivateSubnet1=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PrivateSubnet1" --query "Subnets[0].[SubnetId]" --output text)
+            export PrivateSubnet2=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PrivateSubnet2" --query "Subnets[0].[SubnetId]" --output text)
+            export PrivateSubnet3=$(aws ec2 describe-subnets --filters Name=tag:Name,Values="$CLUSTER_NAME-PrivateSubnet3" --query "Subnets[0].[SubnetId]" --output text)
+            echo "export PrivateSubnet1=$PrivateSubnet1" >> /etc/profile
+            echo "export PrivateSubnet2=$PrivateSubnet2" >> /etc/profile
+            echo "export PrivateSubnet3=$PrivateSubnet3" >> /etc/profile
+
+            # Create EKS Cluster & Nodegroup
+            eksctl create cluster --name $CLUSTER_NAME --region=$AWS_DEFAULT_REGION --nodegroup-name=ng1 --node-type=${WorkerNodeInstanceType} --nodes ${WorkerNodeCount} --node-volume-size=${WorkerNodeVolumesize} --vpc-public-subnets "$PubSubnet1","$PubSubnet2" --version ${KubernetesVersion} --ssh-access --ssh-public-key /root/.ssh/id_rsa.pub --with-oidc --external-dns-access --full-ecr-access --dry-run > cluster42.yaml
+            sed -i 's/certManager: false/certManager: true/g' cluster42.yaml
+            sed -i 's/ebs: false/ebs: true/g' cluster42.yaml
+            cat <<EOT >> cluster42.yaml
+            addons:
+              - name: vpc-cni # no version is specified so it deploys the default version
+                version: latest # auto discovers the latest available
+                attachPolicyARNs:
+                  - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+                configurationValues: |-
+                  enableNetworkPolicy: "true"
+              - name: kube-proxy
+                version: latest
+              - name: coredns
+                version: latest
+            EOT
+            cat <<EOT > precmd.yaml
+              preBootstrapCommands:
+                - "yum install nvme-cli links tree tcpdump sysstat -y"
+            EOT
+            sed -i -n -e '/instanceType/r precmd.yaml' -e '1,$p' cluster42.yaml
+            nohup eksctl create cluster -f cluster42.yaml --verbose 4 --kubeconfig "/root/.kube/config" 1> /root/create-eks.log 2>&1 &
+            echo 'cloudinit End!'
+
+Outputs:
+  eksctlhost:
+    Value: !GetAtt EKSEC2.PublicIp
