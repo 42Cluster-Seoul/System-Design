@@ -72,12 +72,6 @@ Parameters:
       - t3.micro
       - t3.small
       - t3.medium
-  LatestAmiId:
-    Description: (DO NOT CHANGE)
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
-    AllowedValues:
-      - /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
   ClusterBaseName:
     Type: String
@@ -326,7 +320,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref MyInstanceType
-      ImageId: !Ref LatestAmiId
+      ImageId: ami-0ebb3f23647161078
       KeyName: !Ref KeyName
       Tags:
         - Key: Name
@@ -354,7 +348,7 @@ Resources:
             echo 'root:qwe123' | chpasswd
             sed -i "s/^#PermitRootLogin yes/PermitRootLogin yes/g" /etc/ssh/sshd_config
             sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
-            rm -rf /root/.ssh/authorized_keys
+            # rm -rf /root/.ssh/authorized_keys
             systemctl restart sshd
 
             # Config convenience
@@ -460,6 +454,7 @@ Resources:
 
             # Create EKS Cluster & Nodegroup
             eksctl create cluster --name $CLUSTER_NAME --region=$AWS_DEFAULT_REGION --nodegroup-name=ng1 --node-type=${WorkerNodeInstanceType} --nodes ${WorkerNodeCount} --node-volume-size=${WorkerNodeVolumesize} --vpc-public-subnets "$PubSubnet1","$PubSubnet2" --version ${KubernetesVersion} --ssh-access --ssh-public-key /root/.ssh/id_rsa.pub --with-oidc --external-dns-access --full-ecr-access --dry-run > cluster42.yaml
+
             sed -i 's/certManager: false/certManager: true/g' cluster42.yaml
             sed -i 's/ebs: false/ebs: true/g' cluster42.yaml
             cat <<EOT >> cluster42.yaml
@@ -479,9 +474,15 @@ Resources:
               preBootstrapCommands:
                 - "yum install nvme-cli links tree tcpdump sysstat -y"
             EOT
-            sed -i -n -e '/instanceType/r precmd.yaml' -e '1,$p' cluster42.yaml
-            nohup eksctl create cluster -f cluster42.yaml --verbose 4 --kubeconfig "/root/.kube/config" 1> /root/create-eks.log 2>&1 &
-            echo 'cloudinit End!'
+            sed -i -n -e '/instsnceType/r precmd.yaml' -e '1,$p' cluster42.yaml
+            nohup eksctl create cluster -f cluster42.yaml --verbose 4 --kubeconfig "/root/.kube/config" 1> /root/create-eks.log 2>&1
+            echo 'init EKS cluster, public nodegroup End!'
+
+            ## Private nodegroup 추가
+            eksctl create nodegroup -c $CLUSTER_NAME -r $AWS_DEFAULT_REGION --subnet-ids "$PrivateSubnet1,$PrivateSubnet2" --ssh-access --nodes ${WorkerNodeCount} --ssh-public-key /root/.ssh/id_rsa.pub -n ng2 -t t3.medium --node-private-networking --node-volume-size=${WorkerNodeVolumesize} --dry-run > cluster42-private-nodegroup.yaml
+
+            nohup eksctl create nodegroup -f cluster42-private-nodegroup.yaml --verbose 4 1> /root/add-nodegroup.log 2>&1 &
+            echo 'private nodegroup End!'
 
 Outputs:
   eksctlhost:
