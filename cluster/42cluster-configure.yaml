@@ -481,9 +481,27 @@ Resources:
             ## Private nodegroup 추가
             eksctl create nodegroup -c $CLUSTER_NAME -r $AWS_DEFAULT_REGION --subnet-ids "$PrivateSubnet1,$PrivateSubnet2" --ssh-access --nodes ${WorkerNodeCount} --ssh-public-key /root/.ssh/id_rsa.pub -n ng2 -t t3.medium --node-private-networking --node-volume-size=${WorkerNodeVolumesize} --dry-run > cluster42-private-nodegroup.yaml
 
-            nohup eksctl create nodegroup -f cluster42-private-nodegroup.yaml --verbose 4 1> /root/add-nodegroup.log 2>&1 &
+            nohup eksctl create nodegroup -f cluster42-private-nodegroup.yaml --verbose 4 1> /root/add-nodegroup.log 2>&1
             echo 'private nodegroup End!'
 
+
+            ## yq install
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq &&\
+            chmod +x /usr/bin/yq
+
+            ## gh install
+            type -p yum-config-manager >/dev/null || sudo yum install yum-utils
+            sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+            sudo yum install gh -y
+            sudo yum update gh
+
+            ## metric
+            kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+            ## eks audit on
+            ## https://eksctl.io/usage/cloudwatch-cluster-logging/
+            eksctl utils update-cluster-logging --enable-types audit --cluster $CLUSTER_NAME --approve
+            
 Outputs:
   eksctlhost:
     Value: !GetAtt EKSEC2.PublicIp
