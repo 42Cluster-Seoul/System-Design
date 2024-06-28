@@ -535,6 +535,14 @@ Resources:
             ## GITACCESSKEY=k
             echo $GITACCESSKEY > ~/.ssh/gh-key
 
+            ## grafana env
+            export GRAFANA_APISERVER=
+            export PROMETHEUS_SERVER=
+            export GRAFANA_ADMIN_ID=
+            export GRAFANA_ADMIN_PW=
+            export AWS_ACCESS_KEY_ID=
+            export AWS_SECRET_ACCESS_KEY=
+
             ## cli
             git config --global user.name seongtaekkim
             git config --global user.email "chxortnl@gmail.com"
