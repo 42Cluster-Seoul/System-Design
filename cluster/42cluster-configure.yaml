@@ -495,13 +495,63 @@ Resources:
             sudo yum install gh -y
             sudo yum update gh
 
+            ## argocd cli
+            curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+            rm argocd-linux-amd64
+
             ## metric
             kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
             ## eks audit on
             ## https://eksctl.io/usage/cloudwatch-cluster-logging/
-            eksctl utils update-cluster-logging --enable-types audit --cluster $CLUSTER_NAME --approve
-            
+
+
+            EOT
+            cat <<EOT > cloudwatch-config.yaml
+            apiVersion: eksctl.io/v1alpha5
+            kind: ClusterConfig
+            metadata:
+              name: 
+              region: 
+
+            cloudWatch:
+              clusterLogging:
+                enableTypes: ["audit"]
+                logRetentionInDays: 90
+            EOT
+
+            sed -i "s/name:/name: $CLUSTER_NAME/g" cloudwatch-config.yaml
+            sed -i "s/region:/region: $AWS_DEFAULT_REGION/g" cloudwatch-config.yaml
+
+            nohup eksctl utils update-cluster-logging --config-file=cloudwatch-config.yaml --approve 1> /root/cloudwatch-config.log 2>&1
+
+
+            EOT
+            cat <<EOT > app-configure.sh
+            #!/bin/bash
+
+            ## git access key
+            ## GITACCESSKEY=k
+            echo $GITACCESSKEY > ~/.ssh/gh-key
+
+            ## cli
+            git config --global user.name seongtaekkim
+            git config --global user.email "chxortnl@gmail.com"
+
+            ## gh login & 
+            gh auth login --with-token < ~/.ssh/gh-key
+            gh repo clone 42Cluster-Seoul/operator
+            cd operator
+            export BASE_OPT=/root/operator
+            export HIST=opt-history
+
+            cat ~/.ssh/gh-key >> .git-credentials
+            git config credential.helper store --global
+
+            sh cluster-init.sh
+            EOT
+
 Outputs:
   eksctlhost:
     Value: !GetAtt EKSEC2.PublicIp
