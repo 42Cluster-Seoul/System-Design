@@ -552,12 +552,20 @@ Resources:
             gh repo clone 42Cluster-Seoul/operator
             gh repo clone 42Cluster-Seoul/helm-charts
             gh repo clone 42Cluster-Seoul/manifests
-            cd operator
+            
+            cd helm-charts
+            git config credential.helper store --global
+            
+            cd ../manifests
+            git config credential.helper store --global
+            
+            cd ../operator
+            git config credential.helper store --global
             export BASE_OPT=/root/operator
             export HIST=opt-history
             
-            cat ~/.ssh/gh-key >> .git-credentials
-            git config credential.helper store --global
+            # cat ~/.ssh/gh-key >> .git-credentials
+            
 
             sh cluster-init.sh
             EOT
