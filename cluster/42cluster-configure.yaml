@@ -542,10 +542,12 @@ Resources:
             ## gh login & 
             gh auth login --with-token < ~/.ssh/gh-key
             gh repo clone 42Cluster-Seoul/operator
+            gh repo clone 42Cluster-Seoul/helm-charts
+            gh repo clone 42Cluster-Seoul/manifests
             cd operator
             export BASE_OPT=/root/operator
             export HIST=opt-history
-
+            
             cat ~/.ssh/gh-key >> .git-credentials
             git config credential.helper store --global
 
